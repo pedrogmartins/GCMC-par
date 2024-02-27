@@ -8,13 +8,26 @@
 #include <algorithm>
 #include <cstring>
 #include <cstdlib>
-#include<array> 
+#include<array>
 
 
-//TO FIX - LATTICE VECTORS PROCESSING NOT SUITABLE FOR NON
-//   RECTANGULAR UNIT CELLS 
-int n_atoms; //Need to compute the original number of particles
+//This is the partial serial implementation for Grand Canonical Monte Carlo
+//  simulation with neural network potential.
 
+//Date of last update: May 10th, 2023
+//Author: Pedro Guimarães Martins (Starter code for neural network implementation
+//   provided by Yusuf Shaidu, PhD, postdoctoral research at the Neaton Group. 
+
+
+//TO-DO FIX - LATTICE VECTORS PROCESSING NOT SUITABLE FOR NON
+//   RECTANGULAR UNIT CELLS
+
+//Need to compute the original number of particles
+
+
+int n_atoms;
+
+//Function to read POSCAR input file with atomic structure
 void read(std::string filename, std::vector<particle_t>& particles, double& a, double& b, double& c, int& n_atoms) {
     std::ifstream input_file(filename);
     std::string line;
@@ -54,7 +67,7 @@ void read(std::string filename, std::vector<particle_t>& particles, double& a, d
     for (int i = 0; i < num_atoms; i++) {
         double x_frac, y_frac, z_frac;
         std::string atom_line;
-        int index = i; 
+        int index = i;
         input_file >> x_frac >> y_frac >> z_frac;
         std::getline(input_file, atom_line);
         std::istringstream iss(atom_line);
@@ -118,8 +131,8 @@ void fill_ghost_particles(std::vector<particle_t>& particles, double a, double b
 
         //Populate the total number of particles vector with
         // ghost particles (make sure to update the for loop later
-        // as now we don't have to loop over all particles when 
-        // computing energies and forces, ghost particles can be ignored) 
+        // as now we don't have to loop over all particles when
+        // computing energies and forces, ghost particles can be ignored)
 
         //Now we need to add the neighbors from periodic images
         for (int ix = -1; ix <= 1; ix++) {
@@ -130,24 +143,24 @@ void fill_ghost_particles(std::vector<particle_t>& particles, double a, double b
                     ghost.x = ghost.x + ix*a - iy*-10.9346914291381836;
                     ghost.y += iy*18.9394416809082031;
                     ghost.z += iz*c;
-                    //Assign unique index to each ghost particle, we first start 
-                    //   at the original index, and add 84 spacings according to 
+                    //Assign unique index to each ghost particle, we first start
+                    //   at the original index, and add 84 spacings according to
                     //   to how we traverse the ghost boxes uniquely
                     //int ghost_index = (n_atoms - 1) + ((iz + 1) + 3*(iy + 1) + 9*(iz+1))*84 + (ghost.index + 1);
-                    
+
                     // Was getting exc bad access errors, so let`s create
-                    // index based on the numebr of particles already in the 
+                    // index based on the numebr of particles already in the
                     // array
                     ghost.index = particles.size() + 1;
                     particles.push_back(ghost);
                     //if (i == 17 && ix == -1 && iy == 1 && iz == 0) { //}  && ghost.y == -1.59304 && ghost.z == 6.17916) {
-                        
+
                     //    int debug_integer = 0;
                     //}
                     //if (i == 18) {
                     //    part_18_ghosts.push_back(ghost);
                     //}
-                    
+
                     //for (int j = 0; j < particles.size(); j++) {
                     //    particle_t& pj = particles[j];
                     //    double dist = distance(ghost, pj, a, b, c);
@@ -166,7 +179,7 @@ void fill_ghost_particles(std::vector<particle_t>& particles, double a, double b
 
 
 void find_neighbors(std::vector<particle_t>& particles, double rc, double a, double b, double c, int n_atoms) {
-    
+
     //Now we have all the ghost particles, let's loop over each particle
     // and find all of its neighbours
 
@@ -190,7 +203,7 @@ void find_neighbors(std::vector<particle_t>& particles, double rc, double a, dou
                 dist = distance_ghost(pi, pj, a, b, c);
             }
             //Now, we need two function to consider the distance,
-            //  one if the particle is within the initial unit cell, 
+            //  one if the particle is within the initial unit cell,
             // another if the particle is a ghost one
             if (dist < rc) {
                 pi.neighbors.push_back(j);
@@ -200,7 +213,7 @@ void find_neighbors(std::vector<particle_t>& particles, double rc, double a, dou
     }
 }
 
-//Constructor implementation 
+//Constructor implementation
 
 PairPANNAMP::PairPANNAMP() {
     // constructor implementation
@@ -263,16 +276,16 @@ int PairPANNAMP::get_parameters(const std::string& directory, const std::string&
     int parset[Npars];
     for(int i=0;i<Npars;i++) parset[i]=0;
     int *spset;
-    std::string version = "v0"; 
+    std::string version = "v0";
     int gversion=0;
-    double tmp_eta_rad; 
-    double tmp_eta_ang ; 
+    double tmp_eta_rad;
+    double tmp_eta_ang ;
     int tmp_zeta ;
 
     params_file.open(file_string.c_str());
     int section = -1;
     int parseint = get_input_line(&params_file,&key,&value);
-    
+
     while(parseint>0){
         // Parse line
         if(parseint==1){
@@ -363,12 +376,12 @@ int PairPANNAMP::get_parameters(const std::string& directory, const std::string&
             else if(key=="Rsst_rad"){
                 par.Rsst_rad = std::atof(value.c_str()); parset[5] = 1; }
             else if(key=="RsN_rad"){
-                par.RsN_rad = std::atoi(value.c_str()); parset[6] = 1; 
-                par.eta_rad = new float[par.RsN_rad]; 
+                par.RsN_rad = std::atoi(value.c_str()); parset[6] = 1;
+                par.eta_rad = new float[par.RsN_rad];
                 par.twoeta_rad = new float[par.RsN_rad];
                 par.Rs_rad  = new float[par.RsN_rad];
                 for(int i=0;i<par.RsN_rad;i++) par.eta_rad[i]=tmp_eta_rad;
-                for(int i=0;i<par.RsN_rad;i++) par.Rs_rad[i]= par.Rs0_rad + i *(par.Rc_rad - par.Rs0_rad) / par.RsN_rad ; 
+                for(int i=0;i<par.RsN_rad;i++) par.Rs_rad[i]= par.Rs0_rad + i *(par.Rc_rad - par.Rs0_rad) / par.RsN_rad ;
                 parset[14]=1; parset[2]=1;}
             else if(key=="eta_ang"){
                 tmp_eta_ang = std::atof(value.c_str()); parset[7] = 0; }
@@ -379,21 +392,21 @@ int PairPANNAMP::get_parameters(const std::string& directory, const std::string&
             else if(key=="Rsst_ang"){
                 par.Rsst_ang = std::atof(value.c_str()); parset[10] = 1; }
             else if(key=="RsN_ang"){
-                par.RsN_ang = std::atoi(value.c_str()); parset[11] = 1; 
+                par.RsN_ang = std::atoi(value.c_str()); parset[11] = 1;
                 par.eta_ang = new float[par.RsN_ang];
                 par.Rs_ang  = new float[par.RsN_ang];
                 for(int i=0;i<par.RsN_ang;i++) par.eta_ang[i]=tmp_eta_ang;
-                for(int i=0;i<par.RsN_ang;i++) par.Rs_ang[i]= par.Rs0_ang + i *(par.Rc_ang - par.Rs0_ang) / par.RsN_ang ; 
+                for(int i=0;i<par.RsN_ang;i++) par.Rs_ang[i]= par.Rs0_ang + i *(par.Rc_ang - par.Rs0_ang) / par.RsN_ang ;
                 parset[15]=1; parset[7]=1;}
             else if(key=="zeta"){
                 tmp_zeta = std::atof(value.c_str()); parset[12] = 0; }
             else if(key=="ThetasN"){
-                par.ThetasN = std::atoi(value.c_str()); parset[13] = 1; 
+                par.ThetasN = std::atoi(value.c_str()); parset[13] = 1;
                 par.zeta = new int[par.ThetasN];
                 par.zeta_half = new float[par.ThetasN];
                 par.Thetas = new float[par.ThetasN];
                 for(int i=0;i<par.ThetasN;i++) par.zeta[i]=tmp_zeta; parset[12]=1;
-                for(int i=0;i<par.ThetasN;i++) par.Thetas[i]= (0.5f+ i)*(M_PI/par.ThetasN); parset[16]=1;}  
+                for(int i=0;i<par.ThetasN;i++) par.Thetas[i]= (0.5f+ i)*(M_PI/par.ThetasN); parset[16]=1;}
             }//gversion = 0
             else if(gversion ==1 ){
             //First read allocation sizes
@@ -669,8 +682,8 @@ int PairPANNAMP::get_parameters(const std::string& directory, const std::string&
 
 }
 
-//Function that loads all the Gvector and NN parameters and prints out 
-//  success message 
+//Function that loads all the Gvector and NN parameters and prints out
+//  success message
 void PairPANNAMP::coeff(const std::string& directory, const std::string& filename)
 {
 
@@ -740,7 +753,7 @@ double PairPANNAMP::Gangular_d(double rdiff1, double rdiff2, double cosijk, int 
 void PairPANNAMP::compute_gvect(std::vector<particle_t>& particles, int index, int numneigh, double *G, double* dGdx, int num_atoms)
 {
     // int *mask = atom->mask; We don't have a mask object here yet,
-    //    let's see if we need one 
+    //    let's see if we need one
     float posx = particles[index].x;
     float posy = particles[index].y;
     float posz = particles[index].z;
@@ -761,7 +774,7 @@ void PairPANNAMP::compute_gvect(std::vector<particle_t>& particles, int index, i
     int angular_counter = 0;
 
     //Loop over all the neighbors
-    for(int n=0; n < numneigh; n++){ //4; n++) { 
+    for(int n=0; n < numneigh; n++){ //4; n++) {
 
         int nind = particles[index].neighbors[n];
         std::string neig_chem_id = particles[nind].atom;
@@ -771,8 +784,8 @@ void PairPANNAMP::compute_gvect(std::vector<particle_t>& particles, int index, i
         double Rij = sqrt(dx*dx+dy*dy+dz*dz);
         int id_index; //shall be used in three if statmnts
 
-        //exclude  atoms that are not in all group 
-        //   did not implement groups here, let's see later if 
+        //exclude  atoms that are not in all group
+        //   did not implement groups here, let's see later if
         //   might affect anything
         //int igroup = group->find("all");
         //int groupbit = group->bitmask[igroup];
@@ -802,27 +815,27 @@ void PairPANNAMP::compute_gvect(std::vector<particle_t>& particles, int index, i
             // Loop over each index and get the matching chemical identity
             for (int i = 0; i < length; i++) {
                 if (par.species[i] == neig_chem_id) {
-                    id_index = i; 
+                    id_index = i;
                     //std::cout << id << " ";
                 }
             }
 
-            //Now, we know the index of the atom in the 
+            //Now, we know the index of the atom in the
             //  chemical id's list, so we can appropriately
-            //  add the contribution to the gvectors at the 
+            //  add the contribution to the gvectors at the
             //  correct place
 
-            //Gives the index at which we will start adding 
-            //  elements to the gvecto r according to the 
-            //  neighbor chemical identity 
+            //Gives the index at which we will start adding
+            //  elements to the gvecto r according to the
+            //  neighbor chemical identity
             int indsh = id_index*par.RsN_rad;
 
             //Loop over all the radial gaussians
             for(int indr=0; indr<par.RsN_rad; indr++){
-                double dtmp; 
+                double dtmp;
                 // Getting the simple G and derivative part
                 G[indsh+indr] += Gradial_d(Rij, indr, &dtmp);
-                
+
                 if (index == 0 && indsh+indr == 96) {
                     num_ele_at_96 +=1;
                 }
@@ -845,7 +858,7 @@ void PairPANNAMP::compute_gvect(std::vector<particle_t>& particles, int index, i
             }
 
         }
-        // If within radial cutoff, store quantities 
+        // If within radial cutoff, store quantities
         // so they don't have to be recomputed
         if (Rij < par.Rc_ang){
             ang_neigh[nan] = n;
@@ -872,7 +885,7 @@ void PairPANNAMP::compute_gvect(std::vector<particle_t>& particles, int index, i
 
     //Double for loop over all angular neighbors
     for(int n=0; n < nan; n++) {
-        for(int m=0; m < nan; m++) { 
+        for(int m=0; m < nan; m++) {
             if (ang_neigh[n] == ang_neigh[m] && ang_type[n] == ang_type[m] && dists[n] == dists[m] && diffx[n] == diffx[m]) continue;
             // Compute cosine
             double cos_ijk = (diffx[n]*diffx[m] + diffy[n]*diffy[m] + diffz[n]*diffz[m]) /
@@ -886,13 +899,13 @@ void PairPANNAMP::compute_gvect(std::vector<particle_t>& particles, int index, i
                 int indsh2 = Rsi * par.ThetasN + Thi;
                 // Adding the G part and computing derivative
                 G[indsh+indsh2] += Gangular_d(dists[n], dists[m], cos_ijk, Rsi, Thi, dtmp)/2;  //to avoid double
-                if (indsh+indsh2 == 137 && index == 0) { 
+                if (indsh+indsh2 == 137 && index == 0) {
                     std::cout << "We are going through the atom:" << index << "\n";
                     std::cout << "We are going through its neighbor 1:" << ang_neigh[n] << "\n";
                     std::cout << "Type of neighboor 1:" << ang_type[n] << "\n";
                     std::cout << "We are going through its neighbor 2:" << ang_neigh[m] << "\n";
-                    std::cout << "Type of neighboor 2:" << ang_type[m] << "\n";   
-                    std::cout << "This was added to the G vector at position 120:" << Gangular_d(dists[n], dists[m], cos_ijk, Rsi, Thi, dtmp) << "\n";                   
+                    std::cout << "Type of neighboor 2:" << ang_type[m] << "\n";
+                    std::cout << "This was added to the G vector at position 120:" << Gangular_d(dists[n], dists[m], cos_ijk, Rsi, Thi, dtmp) << "\n";
                 }
                 // Computing the derivative contributions
                 double dgdxj = dtmp[0]*diffx[n] + dtmp[1]*diffx[m];
@@ -923,7 +936,7 @@ void PairPANNAMP::compute_gvect(std::vector<particle_t>& particles, int index, i
         }
     int debug = 0;
     }
-    
+
 }
 
 double PairPANNAMP::compute_network(double *G, double *dEdG, int type){
@@ -1025,17 +1038,17 @@ float PairPANNAMP::compute(std::vector<particle_t>& particles, int n_atoms) {
 
     double total=0.0;
 
-    //The original code loops over the particles here 
+    //The original code loops over the particles here
     //  and starts the computation
 
     for (int i = 0; i < n_atoms; i++) {
-        
+
         particle_t& pi = particles[i];
 
         //initiate the inputs for the g_vector calculation
         double G[par.gsize];
         double dEdG[par.gsize];
-        //Now, for dGdX we need to know the number of neighbors 
+        //Now, for dGdX we need to know the number of neighbors
         //double dGdx[par.gsize*(numneigh[myind]+1)*3];
         int numneigh = std::end(pi.neighbors) - std::begin(pi.neighbors); // / sizeof(pi.neighbors[0]);
         double dGdx[par.gsize*(numneigh+1)*3];
@@ -1049,7 +1062,7 @@ float PairPANNAMP::compute(std::vector<particle_t>& particles, int n_atoms) {
 
         //Now we can call here compute g_vector
         compute_gvect(particles, pi.index, numneigh, G, dGdx, n_atoms);
-        
+
         //Debug printing
         //if (i == 0) {
         //    for (int j = 0; j < 360; j++) {
@@ -1058,14 +1071,14 @@ float PairPANNAMP::compute(std::vector<particle_t>& particles, int n_atoms) {
         //}
 
 
-        //Now, we just need to get the particle type index 
+        //Now, we just need to get the particle type index
         // to calculate the energy
         int id_index;
         int length = par.Nspecies;
 
         for (int n = 0; n < length; n++) {
             if (par.species[n] == pi.atom) {
-                id_index = n; 
+                id_index = n;
                 //std::cout << id << " ";
             }
         }
@@ -1075,7 +1088,7 @@ float PairPANNAMP::compute(std::vector<particle_t>& particles, int n_atoms) {
         total += E;
 
     }
-    
+
     return total;
 }
 
@@ -1087,7 +1100,7 @@ float PairPANNAMP::compute(std::vector<particle_t>& particles, int n_atoms) {
 //}
 
 
-//Deconstructor implementation 
+//Deconstructor implementation
 
 PairPANNAMP::~PairPANNAMP() {
     // destructor implementation
@@ -1095,7 +1108,7 @@ PairPANNAMP::~PairPANNAMP() {
 
 
 int main() {
-    
+
     //Task 1. Load atoms from the poscar file
     std::vector<particle_t> particles;
     //Initiate integer for initial number of particles and reserve memory
@@ -1120,7 +1133,7 @@ int main() {
 
     //Save the original number of particles, so this is the for loop
     // max over energy computation, not taking the ghost particles
-    // as well. 
+    // as well.
     double rc = 6;  // Cutoff radius in angstroms
 
     PairPANNAMP pairPannampObj; // create an object of the PairPANNAMP class
@@ -1133,10 +1146,10 @@ int main() {
     std::string directory = "/Users/pedrogm/vs-docs/gcmc_serial/parameters_194k_steps_panna";
     //This executes the function coeff and populates the object
     pairPannampObj.coeff(directory, filename);
-    
+
     //Task4. Do a single point calculation with PANNA from scratch
     float energy = pairPannampObj.compute(particles, n_atoms);
 
-    int debug = 0; 
+    int debug = 0;
 
 }
