@@ -16,7 +16,7 @@
 
 //Date of last update: May 10th, 2023
 //Author: Pedro Guimarães Martins (Starter code for neural network implementation
-//   adapted from Yusuf Shaidu, PhD, postdoctoral research at the Neaton Group. 
+//   adapted from Yusuf Shaidu, PhD, postdoctoral research at the Neaton Group). 
 
 
 //TO-DO FIX - LATTICE VECTORS PROCESSING NOT SUITABLE FOR NON
